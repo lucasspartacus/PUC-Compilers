@@ -890,16 +890,12 @@ CgenNode::CgenNode(Class_ nd, Basicness bstatus, CgenClassTableP ct) :
 //   constant integers, strings, and booleans are provided.
 //
 //*****************************************************************
-int label_indices = 0;
-std::vector<Symbol> manage_variables;
-
-std::map<Symbol,int> argument_list;
-
-std::map<Symbol, std::map<Symbol, int> > attributes;
-
+int label_indices = 0; // para manter índices de rótulos em todo o programa
+std::vector<Symbol> manage_variables;//para gerenciar variáveis let
+std::map<Symbol,int> argument_list;// lista de argumentos do método atual cujo código está sendo gerado
+std::map<Symbol, std::map<Symbol, int> > attributes;  // mantendo os atributos de todas as classes
 std::map<Symbol, std::map<Symbol, std::pair<int, Symbol> > > dispTabel;
-
-Symbol present_class;
+Symbol present_class; // classe atual cujo código está sendo gerado.
 
 void assign_class::code(ostream &s) {
   expr->code(s);
@@ -929,7 +925,7 @@ void dispatch_aux(ostream& s, Expressions actual, Expression expr)
   {
     actual->nth(i)->code(s);
     emit_push(ACC,s);
-    manage_variables.push_back(No_type);
+    manage_variables.push_back(No_type); // para que as variáveis let possam encontrar o deslocamento correto na pilha.
   }
   expr->code(s);
   emit_bne(ACC,ZERO,label_indices,s);
@@ -944,8 +940,7 @@ void static_dispatch_class::code(ostream &s) {
  dispatch_aux(s,actual,expr);
 
   Symbol i = present_class;
-
-  present_class = type_name;
+  present_class = type_name; //configurando a classe atual para a classe que está sendo chamada
 
   char dispatch_label[128];
   char* class_name = present_class->get_string();
@@ -960,7 +955,7 @@ void static_dispatch_class::code(ostream &s) {
 
   for(int i=0; i<num_arguments; i++)
   {
-    manage_variables.pop_back();
+    manage_variables.pop_back(); // para que as variáveis let possam encontrar o deslocamento correto na pilha
   }
   present_class = i;
 }
@@ -993,23 +988,23 @@ void dispatch_class::code(ostream &s) {
 void cond_class::code(ostream &s) {
 
  int else_label = label_indices++;
- pred->code(s);
+ pred->code(s); //expressão de condição avaliada
  emit_load(T1,3,ACC,s);
- emit_beqz(T1,else_label,s);
- then_exp->code(s);
+ emit_beqz(T1,else_label,s); //verificando se é false, se é salta para else
+ then_exp->code(s); //então o código da expressão
  int endif_label = label_indices++;
- emit_branch(endif_label,s);
+ emit_branch(endif_label,s); //pula para o final da instrução if
  emit_label_def(else_label,s);
- else_exp->code(s);
+ else_exp->code(s); //else código da expressão
  emit_label_def(endif_label,s);
 }
 
 void loop_class::code(ostream &s) {
  int loop_label = label_indices++;
  emit_label_def(loop_label,s);
- pred->code(s);
+ pred->code(s); //expressão de condição avaliada
  int loop_end = label_indices++;
- emit_load(T1,3,ACC,s);
+ emit_load(T1,3,ACC,s); //verificando se é falso, se é pula para o fim do loop
  emit_beqz(T1,loop_end,s);
  body->code(s);
  emit_branch(loop_label,s);
@@ -1047,19 +1042,19 @@ void let_class::code(ostream &s) {
 }
 
 void plus_class::code(ostream &s) {
-  // eval e1 and put the result on the stack
-  e1->code(s);
+ // avalia e1 e coloca o resultado na pilha
+  e1->código(s);
   emit_push(ACC, s);
 
-  // eval e2 and copy the object; the new object is in $a0
-  e2->code(s);
-  emit_jal("Object.copy", s);
+  // avalia e2 e copia o objeto; o novo objeto está em $a0
+  e2->código(s);
+  emit_jal("Objeto.cópia", s);
 
-  // $t1 = stack_pop(); $t1 points to e1 object
+  // $t1 = stack_pop(); $t1 aponta para o objeto e1
   emit_addiu(SP, SP, 4, s);
   emit_load(T1, 0, SP, s);
 
-  // $t2 = $a0; $t2 points to e2 object
+  // $t2 = $a0; $t2 aponta para o objeto e2
   emit_move(T2, ACC, s);
 
   // $t1 = $t1.int
@@ -1074,11 +1069,11 @@ void plus_class::code(ostream &s) {
 }
 
 void sub_class::code(ostream &s) {
-  e1->code(s);
-  emit_push(ACC, s);
+  e1->code(s); //avaliando a primeira expressão
+  emit_push(ACC, s); // empurrando o resultado na pilha
 
-  e2->code(s);
-  emit_jal("Object.copy", s);
+  e2->code(s); // avaliando a segunda expressão
+  emit_jal("Object.copy", s); //para criar um novo objeto para resultado
 
   emit_addiu(SP, SP, 4, s);
   emit_load(T1, 0, SP, s);
@@ -1088,16 +1083,16 @@ void sub_class::code(ostream &s) {
   emit_fetch_int(T1, T1, s);
   emit_fetch_int(T2, T2, s);
 
-  emit_sub(T3, T1, T2, s);
+  emit_sub(T3, T1, T2, s); //subtraindo 2 expressões
   emit_store(T3, 3, ACC, s);
 }
 
 void mul_class::code(ostream &s) {
-  e1->code(s);
-  emit_push(ACC, s);
+  e1->code(s); //avaliando a primeira expressão
+  emit_push(ACC, s); // empurrando o resultado na pilha
 
-  e2->code(s);
-  emit_jal("Object.copy", s);
+  e2->code(s); // avaliando a segunda expressão
+  emit_jal("Object.copy", s); //para criar um novo objeto para resultado
 
   emit_addiu(SP, SP, 4, s);
   emit_load(T1, 0, SP, s);
@@ -1107,16 +1102,16 @@ void mul_class::code(ostream &s) {
   emit_fetch_int(T1, T1, s);
   emit_fetch_int(T2, T2, s);
 
-  emit_mul(T3, T1, T2, s);
+  emit_mul(T3, T1, T2, s); //multiplicando 2 expressões
   emit_store(T3, 3, ACC, s);
 }
 
 void divide_class::code(ostream &s) {
-  e1->code(s);
-  emit_push(ACC, s);
+  e1->code(s); //avaliando a primeira expressão
+  emit_push(ACC, s); // empurrando o resultado na pilha
 
-  e2->code(s);
-  emit_jal("Object.copy", s);
+  e2->code(s); // avaliando a segunda expressão
+  emit_jal("Object.copy", s); //para criar um novo objeto para resultado
 
   emit_addiu(SP, SP, 4, s);
   emit_load(T1, 0, SP, s);
@@ -1126,7 +1121,7 @@ void divide_class::code(ostream &s) {
   emit_fetch_int(T1, T1, s);
   emit_fetch_int(T2, T2, s);
 
-  emit_div(T3, T1, T2, s);
+  emit_div(T3, T1, T2, s); //dividindo 2 expressões
   emit_store(T3, 3, ACC, s);
 }
 
@@ -1249,21 +1244,21 @@ void new__class::code(ostream &s) {
     // $t2 = $t2 * 8
     emit_load_imm(T3, 8, s);
     emit_mul(T2, T2, T3, s);
-    // $t1 += offset in the CLASSOBJTAB
+    // $t1 += deslocamento no CLASSOBJTAB
     emit_addu(T1, T1, T2, s);
-    // $t1 now points to SELF_TYPE_CLASS_protObj
+    // $t1 agora aponta para SELF_TYPE_CLASS_protObj
 
-    // push $t1 to the stack
+    // empurra $t1 para a pilha
     emit_push(T1, s);
 
     emit_load(ACC, 0, T1, s);
-    emit_jal("Object.copy", s);
+    emit_jal("Objeto.cópia", s);
 
-    // pop old pointer from the stack to $t1
+    // remove o ponteiro antigo da pilha para $t1
     emit_addiu(SP, SP, 4, s);
     emit_load(T1, 0, SP, s);
 
-    // $t1 += 1 so it now points to SELF_TYPE_CLASS_init
+    // $t1 += 1 agora aponta para SELF_TYPE_CLASS_init
     emit_load(T1, 1, T1, s);
     emit_jalr(T1, s);
 }
@@ -1310,6 +1305,13 @@ else{
  }
 }
 
+/*
+
+
+O código itera sobre uma lista de classes e gera informações de protótipos de objetos para cada classe. 
+Ele também armazena os atributos de cada classe em um mapa.
+
+*/
 void CgenClassTable::code_prototypeObjects()
 {
   for(unsigned i = 0; i<classes_vector.size(); i++)
@@ -1326,6 +1328,13 @@ void CgenClassTable::code_prototypeObjects()
     code_attrList(classes_vector[i],classes_vector[i]->get_name());
   }
 }
+
+/*
+
+A função code_attrList gera código de inicialização para os atributos de uma classe específica. Ela percorre os atributos da classe, 
+trata cada tipo de atributo individualmente e gera o código apropriado de acordo com o tipo. Além disso, a função mantém um mapa de atributos para a classe,
+associando o nome do atributo à sua posição na lista de atributos.
+*/
 
 void CgenClassTable::code_attrList(CgenNode* nome,Symbol current_class)
 {
@@ -1367,6 +1376,9 @@ void CgenClassTable::code_attrList(CgenNode* nome,Symbol current_class)
   }
 }
 
+/*
+A função code_obj_init, é responsável por gerar código de inicialização de objetos para todas as classes presentes no vetor classes_vector
+*/
 void CgenClassTable::code_obj_init()
 {
   for(int i=0; i<classes_vector.size(); i++)
@@ -1375,6 +1387,13 @@ void CgenClassTable::code_obj_init()
     code_class_init(classes_vector[i]);
   }
 }
+
+/*
+A função code_class_init gera o código de inicialização de uma classe específica. Ela empilha registradores, copia o endereço do objeto atual,
+faz uma chamada para a função de inicialização da classe pai (exceto para a classe Object), atribui valores de inicialização aos atributos, 
+registra as atribuições de ponteiros para o coletor de lixo e, por fim, restaura os registradores e retorna para a função chamadora. Essa função é responsável por estabelecer o estado inicial dos objetos da classe durante a execução do programa
+
+*/
 
 void CgenClassTable::code_class_init(CgenNode* n)
 {
@@ -1412,7 +1431,12 @@ void CgenClassTable::code_class_init(CgenNode* n)
   emit_addiu(SP,SP,12,str);
   str << "\tjr $ra"<<endl;
 }
-
+/*
+As funções code_class_nameTab e code_dispTab são responsáveis pela geração de código relacionado às tabelas de nomes de classes e tabelas de despacho de métodos, respectivamente. 
+A função code_class_nameTab itera sobre as classes existentes, criando uma entrada na tabela de strings para cada nome de classe e armazenando o endereço correspondente. 
+Já a função code_dispTab itera sobre as classes, preenchendo uma tabela de despacho de métodos com os nomes e endereços dos métodos de cada classe. 
+Essas tabelas são fundamentais para o funcionamento adequado do polimorfismo e do despacho de métodos durante a execução do programa, permitindo que os métodos sejam chamados corretamente com base nas classes reais dos objetos.
+*/
 void CgenClassTable::code_class_nameTab()
 { str << CLASSNAMETAB << LABEL;
 
@@ -1476,7 +1500,12 @@ void CgenClassTable::make_dispTab(CgenNode* nome, Symbol current_class, std::vec
     }
   }
 }
+/*
 
+A função numOfattr calcula o número total de atributos em uma classe, incluindo os atributos herdados das superclasses. Utilizando um laço de repetição, a função percorre os recursos (features)
+da classe atual e verifica se são atributos, incrementando um contador caso positivo. Em seguida, a função avança para a classe pai na hierarquia de herança e repete o processo até chegar à classe base Object. A
+o final, o contador é retornado, representando a quantidade total de atributos encontrados. Essa função é útil para determinar o número de atributos de uma classe, auxiliando na geração de código e na manipulação de objetos durante a execução do programa.
+*/
 int CgenClassTable::numOfattr(CgenNode* n)
 {
   int count = 0;
