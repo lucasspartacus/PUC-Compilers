@@ -1494,43 +1494,7 @@ int CgenClassTable::numOfattr(CgenNode* n)
   }
   return count;
 }
-
 void CgenClassTable::code_class_methods()
 {
-  for(unsigned i=0; i<classes_vector.size()-5; i++)
-  {
-    for(int j = classes_vector[i]->features->first(); classes_vector[i]->features->more(j); j = classes_vector[i]->features->next(j))
-    {
-      method_class* M = dynamic_cast<method_class*>(classes_vector[i]->features->nth(j));
-
-      if(M!=NULL)
-      {
-
-       	argument_list.clear();
-        Formals f = M->formals;
-        for(int k = f->first(); f->more(k); k=f->next(k))
-        {
-            argument_list.insert(std::pair<Symbol,int>(((formal_class*)(f->nth(k)))->name,k));
-        }
-
-        str << classes_vector[i]->get_name() << METHOD_SEP <<M->name << LABEL;
-
-        emit_push(FP,str);
-        emit_push(SELF,str);
-        emit_push(RA,str);
-        emit_addiu(FP,SP,4,str);
-        emit_move(SELF,ACC,str);
-
-        present_class = classes_vector[i]->get_name();
-
-        M->expr->code(str);
-
-        emit_load(FP,3,SP,str);
-        emit_load(SELF,2,SP,str);
-        emit_load(RA,1,SP,str);
-        emit_addiu(SP,SP,(M->Formals_num()*4)+12,str);
-        str<<"\tjr $ra"<<endl;
-      }
-    }
-  }
+  
 }
